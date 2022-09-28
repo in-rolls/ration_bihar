@@ -21,7 +21,3 @@ parser/main.py
 ```
 
 It will output csvs for every table in the site and one for every contact in the parsed folder
-
-
-# (x) images not being downloaded, to know if there's image link has to be visited
-# () some urls failing
