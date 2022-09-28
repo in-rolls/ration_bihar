@@ -22,6 +22,3 @@ If you wanted to see a sample image of a webpage for each step of the sequence, 
 
 We have the photos of the beneficiaries also. But given the size, they are hosted on GCS. 
 
-### Authors
-
-Matias Gandolfi and Gaurav Sood
