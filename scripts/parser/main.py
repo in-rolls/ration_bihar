@@ -48,7 +48,7 @@ def clean_decode(obj):
 
 
 def main():
-    json_data = read_json_file(f'{BASE_PATH}/extracted_test.json')
+    json_data = read_json_file(f'{BASE_PATH}/extracted.json')
 
     #tree = get_tree(json_data)
     
