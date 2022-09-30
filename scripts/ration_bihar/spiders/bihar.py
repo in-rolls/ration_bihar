@@ -1,25 +1,56 @@
 import scrapy
 import json
 import re
+import urllib.parse
 
 class BiharSpider(scrapy.Spider):
     name = 'bihar'
     allowed_domains = ['epds.bihar.gov.in']
     start_urls = ['http://epds.bihar.gov.in/DistrictWiseRationCardDetailsBH.aspx']
-    HTMLS_PATH = 'htmls/'
+    HTMLS_PATH = '../parsed/htmls/'
     BASE_URL = "http://epds.bihar.gov.in/"
     error_url = []
 
+    def get_req(self, r, form_data, callback, meta):
+
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+
+        form_data.update({
+            '__VIEWSTATE': r.xpath('//input[@id="__VIEWSTATE"]/@value').get(),
+            '__VIEWSTATEGENERATOR': r.xpath('//input[@id="__VIEWSTATEGENERATOR"]/@value').get(),
+            '__VIEWSTATEENCRYPTED': r.xpath('//input[@id="__VIEWSTATEENCRYPTED"]/@value').get(),
+            '__EVENTVALIDATION': r.xpath('//input[@id="__EVENTVALIDATION"]/@value').get(),
+        })
+
+        if not ':' in r.url:
+            breakpoint()
+
+        return scrapy.FormRequest(
+            r.url,
+            method='POST',
+            formdata=form_data,
+            callback=callback,
+            meta={'form_data':form_data},
+            headers=headers 
+        )
+
+
     def parse(self, r):
         # Start
-        yield scrapy.FormRequest.from_response(
-            r,
-            formdata={
+
+        form_data = {
                 'ddlDistrict': "0", 
                 'btnLoad': "Show"
-                },
-            callback=self.parse_table
-        )
+                }
+        meta = {'form_data':form_data}
+
+        yield self.get_req(r, form_data, self.parse_table, meta=meta)
+        # yield scrapy.FormRequest.from_response(
+        #     r,
+        #     formdata=form_data,
+        #     callback=self.parse_table,
+        #     meta={'form_data':form_data}
+        # )
     
     def clean_field(self, f):
         try:
@@ -27,9 +58,9 @@ class BiharSpider(scrapy.Spider):
             f = f.replace('%20', ' ')
             f = re.sub('\s+', ' ', f)
             f = f.strip()
-        except:
-            ...
-
+            f = urllib.parse.unquote(f)
+        except Exception as e:
+            print(e)
         return f
 
     def get_categories(self, url):
@@ -110,20 +141,21 @@ class BiharSpider(scrapy.Spider):
                 if field_href:
                     target, argument = field_href.split("('")[1].split("')")[0].split("','")
 
-                    try:
-                        yield scrapy.FormRequest.from_response(
-                            r,
-                            formdata={
-                                '__EVENTTARGET': target, 
-                                '__EVENTARGUMENT': argument,
-                                'ddlDistrict': '0'
-                                },
-                            callback=self.parse_table,
-                            dont_click=True,
-                        )
-                    except:
-                        #breakpoint()
-                        self.error_url.append(r.url)
+                    form_data = {
+                        '__EVENTTARGET': target, 
+                        '__EVENTARGUMENT': argument,
+                        'ddlDistrict': '0'
+                    }
+                    meta = {'form_data':form_data} 
+                    yield self.get_req(r, form_data, self.parse_table, meta=meta)
+
+                    # yield scrapy.FormRequest.from_response(
+                    #     r,
+                    #     formdata=form_data,
+                    #     callback=self.parse_table,
+                    #     dont_click=True,
+                    #     meta={'form_data':form_data}
+                    # )
 
             json_table.append(item)
         
@@ -139,20 +171,24 @@ class BiharSpider(scrapy.Spider):
             next_href = last_row_selector.xpath('.//@href').get() 
             target, argument = next_href.split("('")[1].split("')")[0].split("','")
 
-            try:
-                yield scrapy.FormRequest.from_response(
-                    r,
-                    formdata={
-                        '__EVENTTARGET': target, 
-                        '__EVENTARGUMENT': argument,
-                        },
-                    callback=self.parse_table,
-                    dont_click=True,
-                    meta={'is_next':json_table}
-                )
-            except:
-                #breakpoint()
-                self.error_url.append(r.url)
+            form_data = {
+                '__EVENTTARGET': target, 
+                '__EVENTARGUMENT': argument,
+            }
+            meta = {
+                'is_next':json_table,
+                'form_data':form_data
+            }
+            yield self.get_req(r, form_data, self.parse_table, meta=meta)
+            # yield scrapy.FormRequest.from_response(
+            #     r,
+            #     formdata=form_data,
+            #     callback=self.parse_table,
+            #     dont_click=True,
+            #     meta={
+            #         'is_next':json_table,
+            #         'form_data':form_data}
+            # )
 
         else:
             page = {
@@ -163,7 +199,8 @@ class BiharSpider(scrapy.Spider):
             if ration_card_data:
                 page.update({
                     'ration_card_details': ration_card,
-                    'sub_table': json.dumps(json_table)
+                    'sub_table': json.dumps(json_table),
+                    'image_urls': [ration_card['img']]
                 })
 
             else:
@@ -174,11 +211,15 @@ class BiharSpider(scrapy.Spider):
             yield page
 
         # Save html
-        file_name = '_'.join([ _ for _ in categories.values()])
+        file_name = '_'.join([ _[:20] for _ in categories.values()])
         file_path = self.HTMLS_PATH + file_name + '.html'
         with open(file_path, 'wb+') as f:
             f.write(r.body)
 
+        # # TEST 
+        # file_path = 'errors.json'
+        # with open(file_path, 'w+') as f:
+        #     f.write(json.dumps(self.error_url))
 
         
 

@@ -4,9 +4,12 @@
 # https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 from scrapy import signals
+from scrapy.exceptions import IgnoreRequest
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
+
+import urllib.parse
 
 
 class RationBiharSpiderMiddleware:
@@ -57,6 +60,7 @@ class RationBiharSpiderMiddleware:
 
 
 class RationBiharDownloaderMiddleware:
+    url_list = []
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
     # passed objects.
@@ -78,7 +82,14 @@ class RationBiharDownloaderMiddleware:
         # - or return a Request object
         # - or raise IgnoreRequest: process_exception() methods of
         #   installed downloader middleware will be called
-        return None
+        unique_url = request.url + str(request.meta.get('form_data', {}))
+
+        if unique_url not in self.url_list:
+            self.url_list.append(unique_url)
+            return None
+        else:
+            print(f'IGNORED {unique_url}')
+            raise IgnoreRequest
 
     def process_response(self, request, response, spider):
         # Called with the response returned from the downloader.

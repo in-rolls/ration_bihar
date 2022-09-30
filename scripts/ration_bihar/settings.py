@@ -21,7 +21,9 @@ DUPEFILTER_CLASS = 'scrapy.dupefilters.BaseDupeFilter'
 ROBOTSTXT_OBEY = False
 
 
-FEED_URI = 'parsed/extracted.json'
+IMAGES_STORE = '../parsed/imgs/'
+
+FEED_URI = '../parsed/extracted.json'
 FEED_FORMAT = 'json'
 FEED_EXPORT_ENCODING = 'utf-8'
 
@@ -50,15 +52,15 @@ CONCURRENT_REQUESTS = 16
 
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-#SPIDER_MIDDLEWARES = {
-#    'ration_bihar.middlewares.RationBiharSpiderMiddleware': 543,
-#}
+SPIDER_MIDDLEWARES = {
+   'ration_bihar.middlewares.RationBiharSpiderMiddleware': 543,
+}
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
-#    'ration_bihar.middlewares.RationBiharDownloaderMiddleware': 543,
-#}
+DOWNLOADER_MIDDLEWARES = {
+   'ration_bihar.middlewares.RationBiharDownloaderMiddleware': 543,
+}
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html
@@ -71,6 +73,7 @@ CONCURRENT_REQUESTS = 16
 #ITEM_PIPELINES = {
 #    'ration_bihar.pipelines.RationBiharPipeline': 300,
 #}
+ITEM_PIPELINES = {'scrapy.pipelines.images.ImagesPipeline': 1}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
