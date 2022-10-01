@@ -12,7 +12,7 @@ class BiharSpider(scrapy.Spider):
     error_url = []
 
     def get_req(self, r, form_data, callback, meta):
-
+        id_form_data = form_data.copy()
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
 
         form_data.update({
@@ -30,7 +30,7 @@ class BiharSpider(scrapy.Spider):
             method='POST',
             formdata=form_data,
             callback=callback,
-            meta={'form_data':form_data},
+            meta={'id_form_data':id_form_data},
             headers=headers 
         )
 
@@ -144,7 +144,7 @@ class BiharSpider(scrapy.Spider):
                     form_data = {
                         '__EVENTTARGET': target, 
                         '__EVENTARGUMENT': argument,
-                        'ddlDistrict': '0'
+                        #'ddlDistrict': '0'
                     }
                     meta = {'form_data':form_data} 
                     yield self.get_req(r, form_data, self.parse_table, meta=meta)
@@ -167,8 +167,8 @@ class BiharSpider(scrapy.Spider):
 
         # Catch next page
         if ('1' in last_row or '...' in last_row) and not last_row_selector.xpath('.//@id').getall() and not 'Total' in last_row:
-            # Get next page
-            next_href = last_row_selector.xpath('.//@href').get() 
+            next_href = last_row_selector.xpath('.//table/tr/td[descendant::font/span]/following-sibling::td//@href').get()
+
             target, argument = next_href.split("('")[1].split("')")[0].split("','")
 
             form_data = {
