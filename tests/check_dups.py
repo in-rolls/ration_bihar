@@ -1,4 +1,5 @@
 import json
+import sys
 
 def main(path):
     with open(path) as f:
@@ -23,5 +24,8 @@ def main(path):
 
 
 if __name__ == '__main__':
-    
-    main('parsed/extracted_test.json')
+    try:
+        path = sys.argv[1]
+        main(path)
+    except Exception as e:
+        print(f'Path error: {e}')
