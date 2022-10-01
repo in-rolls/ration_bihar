@@ -88,7 +88,6 @@ class RationBiharDownloaderMiddleware:
             self.url_list.append(unique_url)
             return None
         else:
-            breakpoint()
             print(f'IGNORED {unique_url}')
             raise IgnoreRequest
 

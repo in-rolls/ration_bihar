@@ -122,9 +122,9 @@ class BiharSpider(scrapy.Spider):
         headers = table.xpath('./tr/th//text()').getall()
 
         # Get Rows
-        rows = table.xpath('.//tr') 
+        rows = table.xpath('.//tr')
 
-        for row in rows[1:-1]:
+        for row in rows[1:-2]:
             item = {}
             fields = row.xpath('./td')
 
@@ -166,31 +166,23 @@ class BiharSpider(scrapy.Spider):
         last_row = ''.join(list(filter(None, last_row)))
 
         # Catch next page
+        next_href = None
         if ('1' in last_row or '...' in last_row) and not last_row_selector.xpath('.//@id').getall() and not 'Total' in last_row:
-            next_href = last_row_selector.xpath('.//table/tr/td[descendant::font/span]/following-sibling::td//@href').get()
+            next_href = last_row_selector.xpath('.//table/tr/td[descendant::span]/following-sibling::td//@href').get()
+            if next_href:
+                target, argument = next_href.split("('")[1].split("')")[0].split("','")
 
-            target, argument = next_href.split("('")[1].split("')")[0].split("','")
+                form_data = {
+                    '__EVENTTARGET': target, 
+                    '__EVENTARGUMENT': argument,
+                }
+                meta = {
+                    'is_next':json_table,
+                    'form_data':form_data
+                }
+                yield self.get_req(r, form_data, self.parse_table, meta=meta)
 
-            form_data = {
-                '__EVENTTARGET': target, 
-                '__EVENTARGUMENT': argument,
-            }
-            meta = {
-                'is_next':json_table,
-                'form_data':form_data
-            }
-            yield self.get_req(r, form_data, self.parse_table, meta=meta)
-            # yield scrapy.FormRequest.from_response(
-            #     r,
-            #     formdata=form_data,
-            #     callback=self.parse_table,
-            #     dont_click=True,
-            #     meta={
-            #         'is_next':json_table,
-            #         'form_data':form_data}
-            # )
-
-        else:
+        if not next_href:
             page = {
                 'url': r.url,
                 'categories': categories
