@@ -76,7 +76,7 @@ class BiharSpider(scrapy.Spider):
                         categories[k] = self.clean_field(v)
 
             except Exception as e:
-                self.logging.error(str(e))
+                self.logger.error(str(e))
 
         return categories
 
@@ -101,7 +101,8 @@ class BiharSpider(scrapy.Spider):
                     try:
                         k, v = text.split(':')
                     except:
-                        breakpoint()
+                        k, *v = text.split(':')
+                        v = ':'.join(v)
                     v = v.strip()
                     k = k.strip()
                     if v != '-':
