@@ -8,7 +8,7 @@ from scrapy.exceptions import IgnoreRequest
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
-
+from pprint import pprint
 import urllib.parse
 
 
@@ -60,7 +60,7 @@ class RationBiharSpiderMiddleware:
 
 
 class RationBiharDownloaderMiddleware:
-    url_list = []
+    url_list = {}
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
     # passed objects.
@@ -82,13 +82,19 @@ class RationBiharDownloaderMiddleware:
         # - or return a Request object
         # - or raise IgnoreRequest: process_exception() methods of
         #   installed downloader middleware will be called
+
         unique_url = request.url + str(request.meta.get('id_form_data', {}))
 
-        if unique_url not in self.url_list:
-            self.url_list.append(unique_url)
+        if unique_url not in self.url_list.keys():
+            self.url_list[unique_url] = 1
             return None
         else:
-            print(f'IGNORED {unique_url}')
+            self.url_list[unique_url] += 1
+            if not 'DispImageHolder' in unique_url:
+                # pprint(self.url_list)
+                # print(unique_url)
+                # breakpoint()
+                self.logging.warning(f'IGNORED {unique_url}')
             raise IgnoreRequest
 
     def process_response(self, request, response, spider):

@@ -10,6 +10,7 @@ class BiharSpider(scrapy.Spider):
     HTMLS_PATH = '../parsed/htmls/'
     BASE_URL = "http://epds.bihar.gov.in/"
     error_url = []
+    reqs = []
 
     def get_req(self, r, form_data, callback, meta):
         id_form_data = form_data.copy()
@@ -22,8 +23,8 @@ class BiharSpider(scrapy.Spider):
             '__EVENTVALIDATION': r.xpath('//input[@id="__EVENTVALIDATION"]/@value').get(),
         })
 
-        if not ':' in r.url:
-            breakpoint()
+        # if not ':' in r.url:
+        #     breakpoint()
 
         return scrapy.FormRequest(
             r.url,
@@ -34,10 +35,8 @@ class BiharSpider(scrapy.Spider):
             headers=headers 
         )
 
-
     def parse(self, r):
         # Start
-
         form_data = {
                 'ddlDistrict': "0", 
                 'btnLoad': "Show"
@@ -45,12 +44,6 @@ class BiharSpider(scrapy.Spider):
         meta = {'form_data':form_data}
 
         yield self.get_req(r, form_data, self.parse_table, meta=meta)
-        # yield scrapy.FormRequest.from_response(
-        #     r,
-        #     formdata=form_data,
-        #     callback=self.parse_table,
-        #     meta={'form_data':form_data}
-        # )
     
     def clean_field(self, f):
         try:
@@ -123,8 +116,12 @@ class BiharSpider(scrapy.Spider):
 
         # Get Rows
         rows = table.xpath('.//tr')
+        
+        for row in rows:
+            # Avoid going through pagination twice
+            if 'Page$' in str(row.xpath('.//@href').getall()):
+                continue
 
-        for row in rows[1:-2]:
             item = {}
             fields = row.xpath('./td')
 
@@ -149,14 +146,6 @@ class BiharSpider(scrapy.Spider):
                     meta = {'form_data':form_data} 
                     yield self.get_req(r, form_data, self.parse_table, meta=meta)
 
-                    # yield scrapy.FormRequest.from_response(
-                    #     r,
-                    #     formdata=form_data,
-                    #     callback=self.parse_table,
-                    #     dont_click=True,
-                    #     meta={'form_data':form_data}
-                    # )
-
             json_table.append(item)
         
         # Get last row
@@ -167,7 +156,7 @@ class BiharSpider(scrapy.Spider):
 
         # Catch next page
         next_href = None
-        if ('1' in last_row or '...' in last_row) and not last_row_selector.xpath('.//@id').getall() and not 'Total' in last_row:
+        if 'Page$' in str(last_row_selector.xpath('.//@href').getall()):
             next_href = last_row_selector.xpath('.//table/tr/td[descendant::span]/following-sibling::td//@href').get()
             if next_href:
                 target, argument = next_href.split("('")[1].split("')")[0].split("','")
@@ -192,7 +181,7 @@ class BiharSpider(scrapy.Spider):
                 page.update({
                     'ration_card_details': ration_card,
                     'sub_table': json.dumps(json_table),
-                    'image_urls': [ration_card['img']]
+                    #'image_urls': [ration_card['img']]
                 })
 
             else:
@@ -202,11 +191,11 @@ class BiharSpider(scrapy.Spider):
             
             yield page
 
-        # Save html
-        file_name = '_'.join([ _[:20] for _ in categories.values()])
-        file_path = self.HTMLS_PATH + file_name + '.html'
-        with open(file_path, 'wb+') as f:
-            f.write(r.body)
+        # # Save html
+        # file_name = '_'.join([ _[:20] for _ in categories.values()])
+        # file_path = self.HTMLS_PATH + file_name + '.html'
+        # with open(file_path, 'wb+') as f:
+        #     f.write(r.body)
 
         # # TEST 
         # file_path = 'errors.json'
