@@ -94,7 +94,7 @@ class RationBiharDownloaderMiddleware:
                 # pprint(self.url_list)
                 # print(unique_url)
                 # breakpoint()
-                self.logging.warning(f'IGNORED {unique_url}')
+                print(f'IGNORED {unique_url}')
             raise IgnoreRequest
 
     def process_response(self, request, response, spider):

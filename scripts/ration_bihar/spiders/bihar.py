@@ -98,7 +98,10 @@ class BiharSpider(scrapy.Spider):
             for row in rows:
                 text = ''.join([ _.strip() for _ in row.xpath('.//text()').getall()])
                 if ':' in text:
-                    k, v = text.split(':')
+                    try:
+                        k, v = text.split(':')
+                    except:
+                        breakpoint()
                     v = v.strip()
                     k = k.strip()
                     if v != '-':
