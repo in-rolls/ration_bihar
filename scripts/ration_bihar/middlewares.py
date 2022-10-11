@@ -61,6 +61,7 @@ class RationBiharSpiderMiddleware:
 
 class RationBiharDownloaderMiddleware:
     url_list = {}
+    hashs = []
     # Not all methods need to be defined. If a method is not defined,
     # scrapy acts as if the downloader middleware does not modify the
     # passed objects.
@@ -84,18 +85,24 @@ class RationBiharDownloaderMiddleware:
         #   installed downloader middleware will be called
 
         unique_url = request.url + str(request.meta.get('id_form_data', {}))
-
+       
         if unique_url not in self.url_list.keys():
             self.url_list[unique_url] = 1
-            return None
+ 
         else:
             self.url_list[unique_url] += 1
             if not 'DispImageHolder' in unique_url:
                 # pprint(self.url_list)
-                # print(unique_url)
-                # breakpoint()
                 print(f'IGNORED {unique_url}')
-            raise IgnoreRequest
+                raise IgnoreRequest
+
+        return None
+            
+
+        # # TEST
+        # with open('urls', 'w+') as f:
+        #     f.write(str(self.url_list))
+        #     f.write(str(len(self.url_list)))
 
     def process_response(self, request, response, spider):
         # Called with the response returned from the downloader.

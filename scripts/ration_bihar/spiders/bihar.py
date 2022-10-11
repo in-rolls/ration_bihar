@@ -2,6 +2,7 @@ import scrapy
 import json
 import re
 import urllib.parse
+import copy
 
 class BiharSpider(scrapy.Spider):
     name = 'bihar'
@@ -9,8 +10,12 @@ class BiharSpider(scrapy.Spider):
     start_urls = ['http://epds.bihar.gov.in/DistrictWiseRationCardDetailsBH.aspx']
     HTMLS_PATH = '../parsed/htmls/'
     BASE_URL = "http://epds.bihar.gov.in/"
-    error_url = []
-    reqs = []
+
+    def __init__(self, n=None, *args, **kwargs):
+        super(BiharSpider, self).__init__(*args, **kwargs)
+        self.n = int(n) # argument that sets which instance is running
+        self.first_parse = True
+        self.rows_qty = 2 # rows per instance
 
     def get_req(self, r, form_data, callback, meta):
         id_form_data = form_data.copy()
@@ -22,9 +27,6 @@ class BiharSpider(scrapy.Spider):
             '__VIEWSTATEENCRYPTED': r.xpath('//input[@id="__VIEWSTATEENCRYPTED"]/@value').get(),
             '__EVENTVALIDATION': r.xpath('//input[@id="__EVENTVALIDATION"]/@value').get(),
         })
-
-        # if not ':' in r.url:
-        #     breakpoint()
 
         return scrapy.FormRequest(
             r.url,
@@ -43,7 +45,7 @@ class BiharSpider(scrapy.Spider):
                 }
         meta = {'form_data':form_data}
 
-        yield self.get_req(r, form_data, self.parse_table, meta=meta)
+        yield self.get_req(r.copy(), form_data, self.parse_table, meta=meta)
     
     def clean_field(self, f):
         try:
@@ -101,8 +103,10 @@ class BiharSpider(scrapy.Spider):
                     try:
                         k, v = text.split(':')
                     except:
-                        k, *v = text.split(':')
-                        v = ':'.join(v)
+                        s_text = text.split(':')
+                        k = s_text[0]
+                        v = ':'.join(s_text[1:])
+                        
                     v = v.strip()
                     k = k.strip()
                     if v != '-':
@@ -111,7 +115,6 @@ class BiharSpider(scrapy.Spider):
                 if img_src := row.xpath('.//img[@id="img_Family"]/@src').get():
                     ration_card['img'] = self.BASE_URL + img_src
                 
-
         # Get full table or table inside details page
         table = r.xpath('//table[@id="gridmain"]')
 
@@ -120,6 +123,13 @@ class BiharSpider(scrapy.Spider):
 
         # Get Rows
         rows = table.xpath('.//tr')
+
+        # Dividing parsing by rows_qty and number of instance entered in args
+        if self.first_parse:
+            start = (self.n * self.rows_qty)
+            end = start + self.rows_qty
+            rows = rows[start:end]
+        self.first_parse = False
         
         for row in rows:
             # Avoid going through pagination twice
@@ -145,11 +155,17 @@ class BiharSpider(scrapy.Spider):
                     form_data = {
                         '__EVENTTARGET': target, 
                         '__EVENTARGUMENT': argument,
-                        #'ddlDistrict': '0'
                     }
-                    meta = {'form_data':form_data} 
-                    yield self.get_req(r, form_data, self.parse_table, meta=meta)
 
+                    # Add ddlDistrict if xpath present
+                    if r.xpath('//*[@id="ddlDistrict"]'):
+                        form_data.update({
+                            'ddlDistrict': '0'
+                        })
+
+                    meta = {'form_data':form_data} 
+                    yield self.get_req(r.copy(), form_data, self.parse_table, meta=meta)
+                    
             json_table.append(item)
         
         # Get last row
@@ -173,7 +189,7 @@ class BiharSpider(scrapy.Spider):
                     'is_next':json_table,
                     'form_data':form_data
                 }
-                yield self.get_req(r, form_data, self.parse_table, meta=meta)
+                yield self.get_req(r.copy(), form_data, self.parse_table, meta=meta)
 
         if not next_href:
             page = {
@@ -201,12 +217,6 @@ class BiharSpider(scrapy.Spider):
         # with open(file_path, 'wb+') as f:
         #     f.write(r.body)
 
-        # # TEST 
-        # file_path = 'errors.json'
-        # with open(file_path, 'w+') as f:
-        #     f.write(json.dumps(self.error_url))
-
-        
 
 
 

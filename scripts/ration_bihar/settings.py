@@ -21,7 +21,7 @@ DUPEFILTER_CLASS = 'scrapy.dupefilters.BaseDupeFilter'
 ROBOTSTXT_OBEY = False
 
 
-IMAGES_STORE = '../parsed/imgs/'
+# IMAGES_STORE = '../parsed/imgs/'
 
 FEED_URI = '../parsed/extracted.json'
 FEED_FORMAT = 'json'
@@ -73,7 +73,7 @@ DOWNLOADER_MIDDLEWARES = {
 #ITEM_PIPELINES = {
 #    'ration_bihar.pipelines.RationBiharPipeline': 300,
 #}
-ITEM_PIPELINES = {'scrapy.pipelines.images.ImagesPipeline': 1}
+#ITEM_PIPELINES = {'scrapy.pipelines.images.ImagesPipeline': 1}
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
