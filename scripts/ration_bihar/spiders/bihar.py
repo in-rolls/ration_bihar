@@ -15,7 +15,7 @@ class BiharSpider(scrapy.Spider):
         super(BiharSpider, self).__init__(*args, **kwargs)
         self.n = int(n) # argument that sets which instance is running
         self.first_parse = True
-        self.rows_qty = 2 # rows per instance
+        self.rows_qty = 3 # rows per instance
 
     def get_req(self, r, form_data, callback, meta):
         id_form_data = form_data.copy()
