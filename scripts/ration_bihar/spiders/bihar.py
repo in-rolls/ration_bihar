@@ -63,9 +63,9 @@ class BiharSpider(scrapy.Spider):
             'state': 'Bihar',
         }
 
-        if '/Block_Town_Wise' in url or 'Tahsil_Name_PMO' in url:
+        if '/Block_Town_Wise' in url or '/Panchayat_Wise' in url or '/Village_Wise' in url or '/RCList_Village_Wise' in url or 'Panchayat_Code_PMO' in url:
             categories['town_wise'] = 'rural'
-        elif '/Town_Wise' in url or 'Village_Name_PMO' in url:
+        elif '/Town_Wise' in url or '/FPS_List_TownWise' in url or '/RCList_FPS_WISE' in url or 'FPS_CODE_PMO' in url:
             categories['town_wise'] = 'urban'
 
         if '?' in url:
@@ -131,7 +131,7 @@ class BiharSpider(scrapy.Spider):
             rows = rows[start:end]
         self.first_parse = False
         
-        for row in rows:
+        for row in rows[:2]:
             # Avoid going through pagination twice
             if 'Page$' in str(row.xpath('.//@href').getall()):
                 continue

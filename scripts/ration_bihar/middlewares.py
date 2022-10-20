@@ -84,17 +84,18 @@ class RationBiharDownloaderMiddleware:
         # - or raise IgnoreRequest: process_exception() methods of
         #   installed downloader middleware will be called
 
-        unique_url = request.url + str(request.meta.get('id_form_data', {}))
+        # unique_url = request.url + str(request.meta.get('id_form_data', {}))
        
-        if unique_url not in self.url_list.keys():
-            self.url_list[unique_url] = 1
+        # if unique_url not in self.url_list.keys():
+        #     self.url_list[unique_url] = 1
  
-        else:
-            self.url_list[unique_url] += 1
-            if not 'DispImageHolder' in unique_url:
-                # pprint(self.url_list)
-                print(f'IGNORED {unique_url}')
-                raise IgnoreRequest
+        # else:
+        #     self.url_list[unique_url] += 1
+        #     if not 'DispImageHolder' in unique_url:
+        #         # pprint(self.url_list)
+        #         print(f'IGNORED {unique_url}')
+        #         input()
+        #         raise IgnoreRequest
 
         return None
             

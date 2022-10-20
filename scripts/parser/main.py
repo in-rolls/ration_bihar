@@ -3,8 +3,16 @@ import re
 import pandas as pd
 from sanity import clean_string, check_sanity
 import urllib.parse
+import logging
+import os
+from pprint import pprint
 
 BASE_PATH = '../parsed'
+
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(message)s',
+                    handlers=[logging.FileHandler("../logs/parser.log"),
+                              logging.StreamHandler()])
 
 def export_to_csv(obj, path):
     # Convert list of dictionaries to csv file trough pandas
@@ -12,26 +20,49 @@ def export_to_csv(obj, path):
     df.to_csv (path, index = False, header=True) 
 
 def read_json_file(path):
+    logging.info(f'Reading json data from {path}...')
     with open(path, 'r') as f:
         file = f.read()
 
     return json.loads(file)
 
+def read_json_files(path):
+    result = []
+
+    for _ in os.listdir(path):
+        result.extend(read_json_file(path + _))
+
+    return result
+
 #Not implemented yet - This is for converting data into a DB
-# def get_tree(jd):
-#     # get tree from ration card details categories data
+def get_tree(jd):
+    # get tree from ration card details categories data
 
-#     branches = []
-#     only_rcd =  list(filter(lambda x: x.get('ration_card_details'), jd))
-#     for rct in only_rcd:
-#         branch = rct.get('categories')
-#         del branch['PLC_code']
-#         del branch['Unique_RC_ID']
-#         branches.append(json.dumps(branch))
+    logging.info(f'Creating DB ids and relations...')
+
+    branches = []
+    only_rcd =  list(filter(lambda x: x.get('ration_card_details'), jd))
+
+    tree = {}
+    for rct in only_rcd:
+        b = rct.get('categories')
+        try:
+            tree.setdefault(b['District_Name_PMO'], {})
+            tree[b['District_Name_PMO']].setdefault(b['town_wise'], {})
+            # Rural
+            #if b['town_wise'] == 'rural':
+            tree[b['District_Name_PMO']][b['town_wise']].setdefault(b['Tahsil_Name_PMO'], {})
+            tree[b['District_Name_PMO']][b['town_wise']][b['Tahsil_Name_PMO']].setdefault(b['Panchayat_Name_PMO'], {}) 
+            tree[b['District_Name_PMO']][b['town_wise']][b['Tahsil_Name_PMO']][b['Panchayat_Name_PMO']].setdefault(b['Village_Name_PMO'], {}) 
+        except:
+            try:
+                tree[b['District_Name_PMO']].setdefault(b['town_wise'], {})
+                tree[b['District_Name_PMO']][b['town_wise']].setdefault(b['Village_Name_PMO'], {})
+                tree[b['District_Name_PMO']][b['town_wise']][b['Village_Name_PMO']].setdefault(b['FPS_Name_PMO'], {}) 
+            except:
+                logging.error(f'Tree broken check: {b}')
+    return tree
     
-#     branches = set(branches)
-#     return [json.loads(_) for _ in branches]
-
 def clean_field(f):
     try:
         f = f.replace('+', ' ')
@@ -48,10 +79,12 @@ def clean_decode(obj):
 
 
 def main():
-    json_data = read_json_file(f'{BASE_PATH}/extracted.json')
-
+    path = f'{BASE_PATH}/extracted/'
+    json_data = read_json_files(path)
     #tree = get_tree(json_data)
     
+    logging.info(f'Parsing results...')
+
     ration_cards = []
     for line in json_data:
         if line.get('ration_card_details'):
@@ -67,6 +100,9 @@ def main():
             path = f"{BASE_PATH}/tables/{file_name}.csv"
 
             export_to_csv(table, path)
+
+    logging.info(f'Tables stored...')
+    logging.info(f'Parsing ration cards data...')
 
     # ration card parsing
     rcds_formatted = []
@@ -94,6 +130,7 @@ def main():
         export_to_csv(fmd_table, path) 
     
     path = f"{BASE_PATH}/ration_cards_details.csv" 
+    logging.info(f'Exporting ration cards into {path} ...')
     export_to_csv(rcds_formatted, path)
 
 
