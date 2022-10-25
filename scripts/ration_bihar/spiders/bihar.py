@@ -131,7 +131,7 @@ class BiharSpider(scrapy.Spider):
             rows = rows[start:end]
         self.first_parse = False
         
-        for row in rows[:2]:
+        for row in rows:
             # Avoid going through pagination twice
             if 'Page$' in str(row.xpath('.//@href').getall()):
                 continue
