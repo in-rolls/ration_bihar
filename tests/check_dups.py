@@ -1,21 +1,19 @@
-import json
+import ijson
 import sys
 
 def main(path):
-    with open(path) as f:
-        e = json.loads(f.read())
-
     checked = []
     repeated = {}
 
-    for l in e:
-        str_l = str(l)
-        if str_l not in checked:
-            checked.append(str_l)
-        else:
-            _id = l['ration_card_details']['राशनकार्ड संख्या']
-            repeated[_id] = repeated.get(_id, 0) + 1
-            #print(l['url'])
+    with open(path, 'rb') as f:
+        for item in ijson.items(f, "item"):
+            str_l = str(item)
+            if str_l not in checked:
+                checked.append(str_l)
+            else:
+                _id = item['ration_card_details']['राशनकार्ड संख्या']
+                repeated[_id] = repeated.get(_id, 0) + 1
+                #print(l['url'])
 
     print('Times repeated:')
     print(repeated.values())

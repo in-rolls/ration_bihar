@@ -45,7 +45,7 @@ class BiharSpider(scrapy.Spider):
                 }
         meta = {'form_data':form_data}
 
-        yield self.get_req(r.copy(), form_data, self.parse_table, meta=meta)
+        #yield self.get_req(r.copy(), form_data, self.parse_table, meta=meta)
     
     def clean_field(self, f):
         try:

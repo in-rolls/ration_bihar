@@ -17,7 +17,17 @@ It will output html files into `html` folder and json data into `parsed/extracte
 
 To run it
 ```
-parser/main.py
+python3 scripts/parser/main.py
 ```
 
-It will output csvs for every table in the site and one for every contact in the parsed folder
+It will output all records in a SQLite DB at `parsed/ration_cards.sqlite`. 
+Tables are divided into
+
+- ration_card_details
+- district 
+- town
+- village
+- fps
+- tahsil
+- panchayat
+

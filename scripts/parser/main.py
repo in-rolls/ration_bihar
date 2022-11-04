@@ -1,68 +1,128 @@
-import json
 import re
-import pandas as pd
-from sanity import clean_string, check_sanity
 import urllib.parse
 import logging
-import os
-from pprint import pprint
+import ijson
+import sqlite3
+from helpers import *
 
-BASE_PATH = '../parsed'
+BASE_PATH = 'parsed'
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(message)s',
-                    handlers=[logging.FileHandler("../logs/parser.log"),
+                    handlers=[logging.FileHandler("logs/parser.log"),
                               logging.StreamHandler()])
 
-def export_to_csv(obj, path):
-    # Convert list of dictionaries to csv file trough pandas
-    df = pd.DataFrame.from_dict(obj)
-    df.to_csv (path, index = False, header=True) 
+def create_sql_db():
+    conn = sqlite3.connect(f'{BASE_PATH}/ration_cards.sqlite')
+    cursor = conn.cursor()
+    cursor.execute('Create Table if not exists ration_card_details (ration_card_number TEXT NOT NULL PRIMARY KEY, card_type Text, img_url Text, know Text, mobile_number Text, fair_price_shopkeeper_name Text, fps_id Text, village_id Text, plc_id Text, unique_rc_id Text, url Text, family_members_table Text)')
 
-def read_json_file(path):
-    logging.info(f'Reading json data from {path}...')
-    with open(path, 'r') as f:
-        file = f.read()
-
-    return json.loads(file)
-
-def read_json_files(path):
-    result = []
-
-    for _ in os.listdir(path):
-        result.extend(read_json_file(path + _))
-
-    return result
-
-#Not implemented yet - This is for converting data into a DB
-def get_tree(jd):
-    # get tree from ration card details categories data
-
-    logging.info(f'Creating DB ids and relations...')
-
-    branches = []
-    only_rcd =  list(filter(lambda x: x.get('ration_card_details'), jd))
-
-    tree = {}
-    for rct in only_rcd:
-        b = rct.get('categories')
-        try:
-            tree.setdefault(b['District_Name_PMO'], {})
-            tree[b['District_Name_PMO']].setdefault(b['town_wise'], {})
-            # Rural
-            #if b['town_wise'] == 'rural':
-            tree[b['District_Name_PMO']][b['town_wise']].setdefault(b['Tahsil_Name_PMO'], {})
-            tree[b['District_Name_PMO']][b['town_wise']][b['Tahsil_Name_PMO']].setdefault(b['Panchayat_Name_PMO'], {}) 
-            tree[b['District_Name_PMO']][b['town_wise']][b['Tahsil_Name_PMO']][b['Panchayat_Name_PMO']].setdefault(b['Village_Name_PMO'], {}) 
-        except:
-            try:
-                tree[b['District_Name_PMO']].setdefault(b['town_wise'], {})
-                tree[b['District_Name_PMO']][b['town_wise']].setdefault(b['Village_Name_PMO'], {})
-                tree[b['District_Name_PMO']][b['town_wise']][b['Village_Name_PMO']].setdefault(b['FPS_Name_PMO'], {}) 
-            except:
-                logging.error(f'Tree broken check: {b}')
-    return tree
+    cursor.execute('Create Table if not exists district (id INTEGER NOT NULL PRIMARY KEY, name Text)')
+    cursor.execute('Create Table if not exists town (id INTEGER NOT NULL PRIMARY KEY, name Text)')
+    cursor.execute('Create Table if not exists village (id TEXT NOT NULL PRIMARY KEY, name Text)')
+    cursor.execute('Create Table if not exists fps (id INTEGER NOT NULL PRIMARY KEY, name text)')
+    cursor.execute('Create Table if not exists tahsil (id INTEGER NOT NULL PRIMARY KEY, name Text)')
+    cursor.execute('Create Table if not exists panchayat (id INTEGER NOT NULL PRIMARY KEY, name Text)')
     
+    return conn, cursor
+
+def feed_tree(cursor, cat):
+    tw = cat.get('town_wise')
+    if tw:
+        query = """INSERT OR IGNORE INTO town (id, name) VALUES (?, ?)"""
+        insert = (
+            1 if tw == 'rural' else 2, 
+            tw
+        )
+        cursor.execute(query, insert)
+
+    if cat.get('District_Code_PMO'):
+        query = """INSERT OR IGNORE INTO district (id, name) VALUES (?, ?)"""
+        insert = (
+           cat.get('District_Code_PMO', ''), 
+           cat.get('District_Name_PMO', '') 
+        )
+        cursor.execute(query, insert)
+
+    if cat.get('FPS_CODE_PMO'):
+        query = """INSERT OR IGNORE INTO fps (id, name) VALUES (?, ?)"""
+        insert = (
+           cat.get('FPS_CODE_PMO', ''), 
+           cat.get('FPS_Name_PMO', '') 
+        )
+        cursor.execute(query, insert)
+
+    if cat.get('Village_Code_PMO'):
+        query = """INSERT OR IGNORE INTO village (id, name) VALUES (?, ?)"""
+        insert = (
+           cat.get('Village_Code_PMO'), 
+           cat.get('Village_Name_PMO', '') 
+        )
+        cursor.execute(query, insert)
+
+    elif cat.get('Village_Name_PMO'):
+        query = """INSERT OR IGNORE INTO village (id, name) VALUES (?, ?)"""
+        insert = (
+           cat.get('Village_Name_PMO'), 
+           cat.get('Village_Name_PMO', '') 
+        )
+        cursor.execute(query, insert)
+
+    if cat.get('Tahsil_Code_PMO'):
+        query = """INSERT OR IGNORE INTO tahsil (id, name) VALUES (?, ?)"""
+        insert = (
+           cat.get('Tahsil_Code_PMO', ''), 
+           cat.get('Tahsil_Name_PMO', '') 
+        )
+        cursor.execute(query, insert)
+    
+    if cat.get('Panchayat_Code_PMO'):
+        query = """INSERT OR IGNORE INTO panchayat (id, name) VALUES (?, ?)"""
+        insert = (
+           cat.get('Panchayat_Code_PMO', ''), 
+           cat.get('Panchayat_Name_PMO', '') 
+        )
+        cursor.execute(query, insert)
+
+
+def json_to_sqlite(conn, cursor, paths):
+    for path in paths:
+        with open(path, 'rb') as f:
+            for item in ijson.items(f, "item"):
+                
+                # Ration card details
+                rcd = item.get('ration_card_details')
+                if rcd:
+                    categories = item.get('categories', {})
+
+                    query = """INSERT OR IGNORE INTO ration_card_details
+                          (ration_card_number, card_type, img_url, know, mobile_number, fair_price_shopkeeper_name, fps_id, village_id, plc_id, unique_rc_id, url, family_members_table) 
+                           VALUES 
+                          (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
+
+                    insert = (
+                        rcd.get('राशनकार्ड संख्या', ''),
+                        rcd.get('कार्ड का प्रकार', ''),
+                        rcd.get('img', ''),
+                        rcd.get('पता', ''),
+                        rcd.get('मोबाईल संख्या', ''),
+                        rcd.get('उचित मूल्य दुकानदार का नाम', ''),
+                        categories.get('FPS_CODE_PMO', ''),
+                        categories.get('Village_Code_PMO', ''),
+                        categories.get('PLC_code', ''),
+                        categories.get('Unique_RC_ID', ''),
+                        categories.get('url', ''),
+                        item.get('sub_table', '')
+                    )
+
+                    cursor.execute(query, insert)
+                    feed_tree(cursor, categories)
+                    
+                    conn.commit() 
+                
+
+    return conn
+        
 def clean_field(f):
     try:
         f = f.replace('+', ' ')
@@ -77,61 +137,14 @@ def clean_field(f):
 def clean_decode(obj):
     return {k:urllib.parse.unquote(clean_field(v)) for k,v in obj.items()}
 
-
 def main():
     path = f'{BASE_PATH}/extracted/'
-    json_data = read_json_files(path)
-    #tree = get_tree(json_data)
+    paths = get_json_files_paths(path)
     
-    logging.info(f'Parsing results...')
-
-    ration_cards = []
-    for line in json_data:
-        if line.get('ration_card_details'):
-            ration_cards.append(line)
-
-        # export table
-        else:
-            table = json.loads(line['table'])
-            categories = clean_decode(line['categories'])
-
-            names_in_categories =  {k: v for k, v in categories.items() if 'Code' not in k}
-            file_name = '_'.join([ _ for _ in names_in_categories.values()]).replace(' ','')
-            path = f"{BASE_PATH}/tables/{file_name}.csv"
-
-            export_to_csv(table, path)
-
-    logging.info(f'Tables stored...')
-    logging.info(f'Parsing ration cards data...')
-
-    # ration card parsing
-    rcds_formatted = []
-
-    for rc in ration_cards:
-        row = rc.get('ration_card_details')
-        try:
-            row['img'] = rc.get('images')[0].get('path')
-        except:
-            row['img'] = ''
-        
-        row.update(clean_decode(rc['categories']))
-        fmd_table_id = 'FMD' + rc['categories']['PLC_code'] + rc['categories']['Unique_RC_ID']
-        row.update({
-            'family members details table id': fmd_table_id,
-            'url': rc.get('url'),
-        })
-
-        # Append ration card data row
-        rcds_formatted.append(row)
-
-        # Store family member details tables with unique ID
-        fmd_table = json.loads(rc.get('sub_table', []))
-        path = f"{BASE_PATH}/family_members_details/{fmd_table_id}.csv"
-        export_to_csv(fmd_table, path) 
-    
-    path = f"{BASE_PATH}/ration_cards_details.csv" 
-    logging.info(f'Exporting ration cards into {path} ...')
-    export_to_csv(rcds_formatted, path)
+    logging.info(f'Dumping results into DB...') 
+    conn, cursor = create_sql_db()
+    conn = json_to_sqlite(conn, cursor, paths)
+    conn.close()
 
 
 if __name__ == '__main__':
