@@ -117,9 +117,7 @@ def json_to_sqlite(conn, cursor, paths):
 
                     cursor.execute(query, insert)
                     feed_tree(cursor, categories)
-                    
                     conn.commit() 
-                
 
     return conn
         
