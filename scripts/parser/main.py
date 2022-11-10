@@ -2,8 +2,8 @@ import re
 import urllib.parse
 import logging
 import ijson
+import json
 import sqlite3
-from helpers import *
 
 BASE_PATH = 'parsed'
 
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO,
 def create_sql_db():
     conn = sqlite3.connect(f'{BASE_PATH}/ration_cards.sqlite')
     cursor = conn.cursor()
-    cursor.execute('Create Table if not exists ration_card_details (ration_card_number TEXT NOT NULL PRIMARY KEY, card_type Text, img_url Text, know Text, mobile_number Text, fair_price_shopkeeper_name Text, fps_id Text, village_id Text, plc_id Text, unique_rc_id Text, url Text, family_members_table Text)')
+    cursor.execute('Create Table if not exists ration_card_details (ration_card_number TEXT NOT NULL PRIMARY KEY, card_type Text, img_url Text, know Text, mobile_number Text, fair_price_shopkeeper_name Text, fps_id Text, village_id Text, plc_id Text, unique_rc_id Text, url Text, family_members_table_id Text)')
 
     cursor.execute('Create Table if not exists district (id INTEGER NOT NULL PRIMARY KEY, name Text)')
     cursor.execute('Create Table if not exists town (id INTEGER NOT NULL PRIMARY KEY, name Text)')
@@ -23,6 +23,7 @@ def create_sql_db():
     cursor.execute('Create Table if not exists fps (id INTEGER NOT NULL PRIMARY KEY, name text)')
     cursor.execute('Create Table if not exists tahsil (id INTEGER NOT NULL PRIMARY KEY, name Text)')
     cursor.execute('Create Table if not exists panchayat (id INTEGER NOT NULL PRIMARY KEY, name Text)')
+    cursor.execute('Create Table if not exists family_members_tables (id Text NOT NULL PRIMARY KEY, members_qty INTEGER, sub_table Text)')
     
     return conn, cursor
 
@@ -84,6 +85,21 @@ def feed_tree(cursor, cat):
         )
         cursor.execute(query, insert)
 
+def family_members_table(rcn, fmt, cursor):
+
+    members_qty = len(fmt)
+    sub_table = json.dumps(list(filter(None, fmt)))
+    
+    query = """INSERT OR IGNORE INTO family_members_tables (id, members_qty, sub_table) VALUES (?, ?, ?)"""
+    insert = (
+        rcn,
+        members_qty,
+        sub_table
+    )
+    cursor.execute(query, insert)
+
+    return cursor
+
 
 def json_to_sqlite(conn, cursor, paths):
     for path in paths:
@@ -92,16 +108,23 @@ def json_to_sqlite(conn, cursor, paths):
                 
                 # Ration card details
                 rcd = item.get('ration_card_details')
+                
                 if rcd:
+                    rcn = rcd.get('राशनकार्ड संख्या', '')
                     categories = item.get('categories', {})
 
                     query = """INSERT OR IGNORE INTO ration_card_details
-                          (ration_card_number, card_type, img_url, know, mobile_number, fair_price_shopkeeper_name, fps_id, village_id, plc_id, unique_rc_id, url, family_members_table) 
+                          (ration_card_number, card_type, img_url, know, mobile_number, fair_price_shopkeeper_name, fps_id, village_id, plc_id, unique_rc_id, url, family_members_table_id) 
                            VALUES 
                           (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 
+                    # Store family members table
+                    fmt = json.loads(item.get('sub_table', []))
+                    if fmt:
+                        cursor = family_members_table(rcn, fmt, cursor)
+
                     insert = (
-                        rcd.get('राशनकार्ड संख्या', ''),
+                        rcn,
                         rcd.get('कार्ड का प्रकार', ''),
                         rcd.get('img', ''),
                         rcd.get('पता', ''),
@@ -112,7 +135,7 @@ def json_to_sqlite(conn, cursor, paths):
                         categories.get('PLC_code', ''),
                         categories.get('Unique_RC_ID', ''),
                         categories.get('url', ''),
-                        item.get('sub_table', '')
+                        rcn
                     )
 
                     cursor.execute(query, insert)
