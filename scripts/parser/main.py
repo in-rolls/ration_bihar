@@ -4,6 +4,7 @@ import logging
 import ijson
 import json
 import sqlite3
+from helpers import *
 
 BASE_PATH = 'parsed'
 
@@ -103,6 +104,7 @@ def family_members_table(rcn, fmt, cursor):
 
 def json_to_sqlite(conn, cursor, paths):
     for path in paths:
+        logging.info(f'Processing {path}...') 
         with open(path, 'rb') as f:
             for item in ijson.items(f, "item"):
                 
@@ -162,10 +164,11 @@ def main():
     path = f'{BASE_PATH}/extracted/'
     paths = get_json_files_paths(path)
     
-    logging.info(f'Dumping results into DB...') 
+    logging.info(f'Dumping results into {path}...') 
     conn, cursor = create_sql_db()
     conn = json_to_sqlite(conn, cursor, paths)
     conn.close()
+    logging.info(f'Done...') 
 
 
 if __name__ == '__main__':
