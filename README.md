@@ -18,7 +18,4 @@ State -> District -> Nagarpalika -> Ward -> FPS -> Ration Card -> Ration Card Da
 The Rural data is structured as follows:
 State -> District -> Panchayat -> Village -> FPS -> Ration Card -> Ration Card Data
 
-If you wanted to see a sample image of a webpage for each step of the sequence, look at [img/](img/)
-
-We have the photos of the beneficiaries also. But given the size, they are hosted on GCS. 
 
